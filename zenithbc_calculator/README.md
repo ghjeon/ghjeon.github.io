@@ -29,9 +29,16 @@ import App from "./app.jsx";
 createRoot(document.getElementById("root")).render(<App />);
 ENTRY
 
+STAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M KST')
 npx esbuild entry.jsx --bundle --minify --format=iife --target=es2019 \
-  --define:process.env.NODE_ENV='"production"' --outfile=bundle.js
+  --define:process.env.NODE_ENV='"production"' \
+  --define:__BUILD_AT__="\"$STAMP\"" \
+  --outfile=bundle.js
 ```
+
+푸터 우측의 '최종 갱신' 시각은 `__BUILD_AT__`로 주입합니다. 런타임 시계를 쓰면 열어볼
+때마다 값이 바뀌어 갱신 시각의 뜻이 사라지므로 빌드 시점을 박아 넣습니다. 이 define을
+빼고 빌드하면 시각이 표시되지 않습니다.
 
 그 다음 `index.html`의 `<script>` ... `</script>` 사이 내용을 `bundle.js`로 교체합니다.
 `entry.jsx`, `bundle.js`, `node_modules`는 커밋하지 않습니다.

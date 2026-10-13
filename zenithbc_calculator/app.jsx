@@ -8,6 +8,10 @@ import React, { useState, useMemo } from "react";
 
 const MOVE_IN_PUB = "2032-02-15";
 
+/* 최종 갱신 시각 — 빌드 시점에 esbuild --define:__BUILD_AT__ 로 주입한다.
+   런타임 시계를 쓰면 열어볼 때마다 값이 바뀌어 '갱신 시각'의 뜻이 사라진다. */
+const BUILD_AT = (typeof __BUILD_AT__ !== "undefined" && __BUILD_AT__) || "";
+
 const TYPES = {
   "59A": {
     key: "59A", full: "059.9400A", line: "101~104동 2, 5호",
@@ -659,6 +663,13 @@ export default function App() {
         .disc ul { margin:8px 14px 0; padding-left:16px; }
         .disc li { font-size:11.5px; line-height:1.7; color:#52301F; margin-bottom:5px; }
         .disc b { font-weight:650; color:#7A2B21; }
+
+        .sitefoot { margin-top:16px; padding-top:11px; border-top:1px solid var(--rule);
+          display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+          flex-wrap:wrap; font-size:11.5px; color:var(--ink3); }
+        .sitefoot a { color:var(--ink2); text-decoration:none;
+          border-bottom:1px solid var(--rule); }
+        .sitefoot a:hover { color:var(--hi); border-bottom-color:var(--hi); }
         @media (max-width:620px){
           .headline { grid-template-columns:1fr; }
           .hcell .v { font-size:21px; }
@@ -1477,6 +1488,13 @@ export default function App() {
             작성자는 이 자료의 정확성을 보증하지 않으며, 이 자료를 근거로 한 판단의 결과에 대하여
             책임을 지지 않습니다. <b>투자자문이 아닙니다.</b>
           </p>
+        </div>
+
+        <div className="sitefoot">
+          <a href="https://cafe.naver.com/zenithbc" target="_blank" rel="noopener noreferrer">
+            두산위브더제니스 부천 입주예정자 협의회
+          </a>
+          {BUILD_AT && <span className="num">최종 갱신 {BUILD_AT}</span>}
         </div>
       </div>
     </div>
