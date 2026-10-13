@@ -413,9 +413,40 @@ function compute(typeKey, floorKey, pickedIds, P) {
   };
 }
 
+
+/* 유입 경로 안내 — 서버가 없는 정적 호스팅이라 document.referrer만 볼 수 있고,
+   이는 접근 제어가 아니라 안내용이다. referrer는 위조할 수 있고 HTML도 공개된다.
+   빈 referrer는 비정상 접근보다 정상 접근에서 더 흔하다(주소 직접 입력, 북마크,
+   메신저 공유, 네이버 카페의 외부 링크 등). 그래서 막지 않고 닫을 수 있는 배너만 띄운다. */
+const ENTRY_ALLOW = ["cafe.naver.com", "naver.me"];
+const CAFE_URL = "https://cafe.naver.com/zenithbc";
+
+function entryIsKnown() {
+  if (typeof document === "undefined" || typeof window === "undefined") return true;
+  const r = document.referrer;
+  if (!r) return false;
+  try {
+    const h = new URL(r).hostname;
+    if (h === window.location.hostname) return true; // 같은 사이트 내 이동
+    return ENTRY_ALLOW.some((d) => h === d || h.endsWith("." + d));
+  } catch {
+    return false;
+  }
+}
+
+const NOTICE_KEY = "zenithbc:entry-notice-dismissed";
+const noticeWasDismissed = () => {
+  try { return sessionStorage.getItem(NOTICE_KEY) === "1"; } catch { return false; }
+};
+const rememberDismissal = () => {
+  try { sessionStorage.setItem(NOTICE_KEY, "1"); } catch { /* 사생활 보호 모드 등 */ }
+};
+
 /* ── component ─────────────────────────────── */
 
 export default function App() {
+  const [entryOk] = useState(entryIsKnown);
+  const [noticeOff, setNoticeOff] = useState(noticeWasDismissed);
   const [typeKey, setTypeKey] = useState(null);
   const [floorKey, setFloorKey] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -664,6 +695,14 @@ export default function App() {
         .disc li { font-size:11.5px; line-height:1.7; color:#52301F; margin-bottom:5px; }
         .disc b { font-weight:650; color:#7A2B21; }
 
+        .entry { border:1px solid var(--hi); border-left-width:5px; background:#F3F6FA;
+          padding:10px 13px; margin-bottom:18px; display:flex; gap:12px;
+          align-items:flex-start; justify-content:space-between; }
+        .entry .etext { font-size:12px; line-height:1.65; color:var(--ink2); }
+        .entry b { color:var(--hi); font-weight:650; margin-right:4px; }
+        .entry a { color:var(--hi); }
+        .entry .pbtn { flex:none; }
+
         .sitefoot { margin-top:16px; padding-top:11px; border-top:1px solid var(--rule);
           display:flex; justify-content:space-between; align-items:baseline; gap:10px;
           flex-wrap:wrap; font-size:11.5px; color:var(--ink3); }
@@ -677,6 +716,19 @@ export default function App() {
       `}</style>
 
       <div className="wrap">
+        {!entryOk && !noticeOff && (
+          <div className="entry" role="status">
+            <div className="etext">
+              <b>올바른 경로로 접근해 주십시오.</b>
+              이 계산기는 <a href={CAFE_URL} target="_blank" rel="noopener noreferrer">
+              두산위브더제니스 부천 입주예정자 협의회</a>를 통해 공유되는 참고자료입니다.
+              최신본과 함께 올라온 설명·정정 사항은 카페에서 확인하실 수 있습니다.
+            </div>
+            <button className="pbtn" onClick={() => { setNoticeOff(true); rememberDismissal(); }}>
+              닫기
+            </button>
+          </div>
+        )}
         <div className="masthead">
           <div>
             <h1>두산위브더제니스 부천 · 전 주택형 자금계획</h1>
