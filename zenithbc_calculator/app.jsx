@@ -414,15 +414,28 @@ function compute(typeKey, floorKey, pickedIds, P) {
 }
 
 
-/* 유입 경로 안내 — 서버가 없는 정적 호스팅이라 document.referrer만 볼 수 있고,
-   이는 접근 제어가 아니라 안내용이다. referrer는 위조할 수 있고 HTML도 공개된다.
-   빈 referrer는 비정상 접근보다 정상 접근에서 더 흔하다(주소 직접 입력, 북마크,
-   메신저 공유, 네이버 카페의 외부 링크 등). 그래서 막지 않고 닫을 수 있는 배너만 띄운다. */
+/* 유입 경로 제한 — 협의회 카페를 통한 접근만 허용한다.
+
+   한계를 분명히 해 둔다. 정적 호스팅이라 서버에서 Referer를 볼 수 없고 브라우저가
+   알려주는 document.referrer만 읽을 수 있다. referrer는 위조할 수 있고 이 파일의
+   내용은 전부 HTML에 들어 있으므로, 소스 보기나 JS 비활성화로 우회된다.
+   즉 보안 장치가 아니라 링크가 맥락 없이 퍼지는 것을 늦추는 장치다.
+
+   한 번 통과하면 세션 동안 기억한다. 새로고침이나 탭 복원에서 referrer가 사라져도
+   같은 세션이면 다시 막히지 않게 하기 위한 것이다.                              */
 const ENTRY_ALLOW = ["cafe.naver.com", "naver.me"];
 const CAFE_URL = "https://cafe.naver.com/zenithbc";
+const PASS_KEY = "zenithbc:entry-ok";
 
-function entryIsKnown() {
-  if (typeof document === "undefined" || typeof window === "undefined") return true;
+const readPass = () => {
+  try { return sessionStorage.getItem(PASS_KEY) === "1"; } catch { return false; }
+};
+const writePass = () => {
+  try { sessionStorage.setItem(PASS_KEY, "1"); } catch { /* 사생활 보호 모드 등 */ }
+};
+
+function referrerAllowed() {
+  if (typeof document === "undefined" || typeof window === "undefined") return false;
   const r = document.referrer;
   if (!r) return false;
   try {
@@ -434,19 +447,69 @@ function entryIsKnown() {
   }
 }
 
-const NOTICE_KEY = "zenithbc:entry-notice-dismissed";
-const noticeWasDismissed = () => {
-  try { return sessionStorage.getItem(NOTICE_KEY) === "1"; } catch { return false; }
-};
-const rememberDismissal = () => {
-  try { sessionStorage.setItem(NOTICE_KEY, "1"); } catch { /* 사생활 보호 모드 등 */ }
-};
+function entryAllowed() {
+  if (referrerAllowed()) { writePass(); return true; }
+  return readPass();
+}
+
+function Gate() {
+  return (
+    <div className="root">
+      <style>{GATE_CSS}</style>
+      <div className="gate">
+        <div className="gbox">
+          <h1>올바른 경로로 접근해 주십시오.</h1>
+          <p>
+            이 자금계획 계산기는 <b>두산위브더제니스 부천 입주예정자 협의회</b>를 통해서만
+            공유되는 자료입니다. 협의회 카페의 안내 글에서 링크를 눌러 들어와 주시기 바랍니다.
+          </p>
+          <p>
+            주소를 직접 입력하거나 즐겨찾기·메신저로 전달받은 링크로는 열리지 않습니다.
+            자료의 전제와 한계를 함께 읽으셔야 하는 참고자료이기 때문입니다.
+          </p>
+          <a className="gbtn" href={CAFE_URL}>협의회 카페로 이동</a>
+          <p className="gfoot">
+            입주자모집공고 제2026000382호를 토대로 작성된 참고자료이며 실제와 다를 수
+            있습니다. 투자자문이 아닙니다.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const GATE_CSS = `
+  .root { --paper:#FAFAF8; --ink:#16233B; --ink2:#5C6B82; --ink3:#8A97A8;
+    --rule:#CBD5E1; --hi:#1F4E79;
+    background:var(--paper); color:var(--ink); min-height:100vh;
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",
+                "Noto Sans KR",system-ui,sans-serif;
+    font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .root * { box-sizing:border-box; }
+  .gate { display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:40px 16px; }
+  .gbox { max-width:460px; border:1px solid var(--rule); background:#fff;
+    padding:30px 28px 24px; }
+  .gbox h1 { margin:0 0 16px; font-size:17px; font-weight:650; letter-spacing:-0.02em;
+    padding-bottom:14px; border-bottom:2px solid var(--ink); }
+  .gbox p { margin:0 0 13px; font-size:13px; line-height:1.75; color:var(--ink2); }
+  .gbox b { color:var(--ink); font-weight:650; }
+  .gbtn { display:inline-block; margin:6px 0 18px; padding:9px 18px;
+    background:var(--hi); color:#fff; text-decoration:none; font-size:13px;
+    font-weight:600; }
+  .gbtn:hover { background:var(--ink); }
+  .gfoot { font-size:11px !important; color:var(--ink3) !important; line-height:1.65 !important;
+    margin:0 !important; padding-top:14px; border-top:1px solid var(--rule); }
+`;
 
 /* ── component ─────────────────────────────── */
 
 export default function App() {
-  const [entryOk] = useState(entryIsKnown);
-  const [noticeOff, setNoticeOff] = useState(noticeWasDismissed);
+  const [ok] = useState(entryAllowed);
+  return ok ? <Calculator /> : <Gate />;
+}
+
+function Calculator() {
   const [typeKey, setTypeKey] = useState(null);
   const [floorKey, setFloorKey] = useState(null);
   const [picked, setPicked] = useState([]);
@@ -695,14 +758,6 @@ export default function App() {
         .disc li { font-size:11.5px; line-height:1.7; color:#52301F; margin-bottom:5px; }
         .disc b { font-weight:650; color:#7A2B21; }
 
-        .entry { border:1px solid var(--hi); border-left-width:5px; background:#F3F6FA;
-          padding:10px 13px; margin-bottom:18px; display:flex; gap:12px;
-          align-items:flex-start; justify-content:space-between; }
-        .entry .etext { font-size:12px; line-height:1.65; color:var(--ink2); }
-        .entry b { color:var(--hi); font-weight:650; margin-right:4px; }
-        .entry a { color:var(--hi); }
-        .entry .pbtn { flex:none; }
-
         .sitefoot { margin-top:16px; padding-top:11px; border-top:1px solid var(--rule);
           display:flex; justify-content:space-between; align-items:baseline; gap:10px;
           flex-wrap:wrap; font-size:11.5px; color:var(--ink3); }
@@ -716,19 +771,6 @@ export default function App() {
       `}</style>
 
       <div className="wrap">
-        {!entryOk && !noticeOff && (
-          <div className="entry" role="status">
-            <div className="etext">
-              <b>올바른 경로로 접근해 주십시오.</b>
-              이 계산기는 <a href={CAFE_URL} target="_blank" rel="noopener noreferrer">
-              두산위브더제니스 부천 입주예정자 협의회</a>를 통해 공유되는 참고자료입니다.
-              최신본과 함께 올라온 설명·정정 사항은 카페에서 확인하실 수 있습니다.
-            </div>
-            <button className="pbtn" onClick={() => { setNoticeOff(true); rememberDismissal(); }}>
-              닫기
-            </button>
-          </div>
-        )}
         <div className="masthead">
           <div>
             <h1>두산위브더제니스 부천 · 전 주택형 자금계획</h1>
